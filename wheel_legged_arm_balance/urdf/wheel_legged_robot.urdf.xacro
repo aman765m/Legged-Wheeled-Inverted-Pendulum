@@ -1,0 +1,298 @@
+<?xml version="1.0"?>
+<!--
+  Wheel-legged biped robot with a 2-DoF horizontal manipulator arm.
+  Re-creation of the robot of:
+    F. Raza, W. Zhu, M. Hayashibe, "Balance Stability Augmentation for
+    Wheel-Legged Biped Robot Through Arm Acceleration Control",
+    IEEE Access, vol. 9, pp. 54022-54031, 2021.
+  All inertial parameters follow Table 1 of the paper.
+
+  Frames
+    base_link  : robot body (torso + legs), origin at the lower-body CoM
+                 (= frame Sigma_C of the paper). X forward, Y left, Z up.
+    wheel axis : l = 0.5914 m below base_link (= frame Sigma_R).
+    arm_base   : frame Sigma_A of the arm (Fig. 3), joint axes along +Z.
+
+  The legs are fixed (hip/knee angles are computed so that the CoM height is l),
+  in line with the paper's assumption of massless legs during the experiments.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="wheel_legged_robot">
+
+  <xacro:arg name="payload_mass" default="0.36"/>   <!-- can of cola: 0.36 or 0.72 kg -->
+  <xacro:arg name="use_gazebo" default="true"/>
+  <xacro:arg name="controllers_file" default="$(find wheel_legged_arm_balance)/config/controllers.yaml"/>
+  <xacro:arg name="wheel_damping" default="0.25"/>  <!-- c_r, c_l of Table 1 -->
+
+  <xacro:property name="pkg" value="package://wheel_legged_arm_balance/meshes"/>
+  <xacro:property name="PI" value="3.14159265358979"/>
+
+  <!-- ===================== Table 1 parameters ===================== -->
+  <xacro:property name="m_c" value="7.5"/>
+  <xacro:property name="I_xx" value="0.0878"/>
+  <xacro:property name="I_yy" value="0.0347"/>
+  <xacro:property name="I_zz" value="0.0632"/>
+  <xacro:property name="l_com" value="0.5914"/>
+  <xacro:property name="m_w" value="0.35"/>
+  <xacro:property name="r_w" value="0.1016"/>
+  <xacro:property name="I_wa" value="0.0018"/>
+  <xacro:property name="I_wd" value="0.000929"/>
+  <xacro:property name="b" value="0.215"/>
+  <xacro:property name="l1" value="0.3"/>
+  <xacro:property name="l2" value="0.3"/>
+  <xacro:property name="lg1" value="0.3"/>
+  <xacro:property name="lg2" value="0.3"/>
+  <xacro:property name="m1" value="0.6"/>
+  <xacro:property name="m2" value="1.13"/>
+  <xacro:property name="I1" value="0.018"/>
+  <xacro:property name="I2" value="0.0339"/>
+
+  <!-- ===================== Geometry (not in the paper) ===================== -->
+  <xacro:property name="torso_x" value="0.14"/>
+  <xacro:property name="torso_y" value="0.32"/>
+  <xacro:property name="torso_z" value="0.34"/>
+  <xacro:property name="pedestal_h" value="0.06"/>
+  <xacro:property name="wheel_w" value="0.04"/>
+  <xacro:property name="leg_len" value="0.26"/>
+  <xacro:property name="hip_z" value="${-torso_z/2 + 0.02}"/>
+  <xacro:property name="hip_y" value="0.19"/>
+  <!-- knee bend so that the wheel axis is exactly l_com below the CoM -->
+  <xacro:property name="leg_phi" value="${acos((l_com + hip_z) / (2.0*leg_len))}"/>
+  <xacro:property name="shoulder_z" value="${torso_z/2 + pedestal_h}"/>
+  <xacro:property name="elbow_dz" value="0.035"/>
+  <!-- home posture of the arm: A_x_ee = 0.3, A_y_ee = 0 (elbow to the left) -->
+  <xacro:property name="q1_home" value="${PI/3}"/>
+  <xacro:property name="q2_home" value="${-2*PI/3}"/>
+  <xacro:property name="can_r" value="0.033"/>
+  <xacro:property name="can_h" value="0.122"/>
+
+  <xacro:property name="tiny_mass" value="0.001"/>
+
+  <material name="silver"><color rgba="0.82 0.82 0.84 1"/></material>
+  <material name="red"><color rgba="0.85 0.05 0.05 1"/></material>
+  <material name="dark"><color rgba="0.12 0.12 0.12 1"/></material>
+  <material name="grey"><color rgba="0.55 0.55 0.58 1"/></material>
+  <material name="coke"><color rgba="0.75 0.0 0.05 1"/></material>
+
+  <xacro:macro name="tiny_inertial">
+    <inertial>
+      <mass value="${tiny_mass}"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Visual-only part on a fixed joint. Gazebo Classic ignores URDF <color> and can
+       colour only whole links, so differently coloured parts live in their own
+       massless links (lumped back into the parent by Gazebo: no effect on physics). -->
+  <xacro:macro name="visual_part" params="name parent mesh material gz_material xyz:='0 0 0' rpy:='0 0 0' scale:='1 1 1'">
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+    </joint>
+    <link name="${name}">
+      <visual>
+        <geometry><mesh filename="${pkg}/${mesh}" scale="${scale}"/></geometry>
+        <material name="${material}"/>
+      </visual>
+    </link>
+    <gazebo reference="${name}"><material>${gz_material}</material></gazebo>
+  </xacro:macro>
+
+  <!-- ===================== Body ===================== -->
+  <link name="base_link">
+    <visual>
+      <geometry><mesh filename="${pkg}/torso.stl"/></geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <geometry><box size="${torso_x} ${torso_y} ${torso_z}"/></geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="${m_c}"/>
+      <inertia ixx="${I_xx}" ixy="0" ixz="0" iyy="${I_yy}" iyz="0" izz="${I_zz}"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="base_link"><material>Gazebo/White</material></gazebo>
+  <!-- hip actuators -->
+  <xacro:visual_part name="hip_motor_left_link" parent="base_link" mesh="motor.stl" material="red"
+                     gz_material="Gazebo/Red" xyz="0 ${torso_y/2 + 0.02} ${hip_z}" rpy="${PI/2} 0 0"/>
+  <xacro:visual_part name="hip_motor_right_link" parent="base_link" mesh="motor.stl" material="red"
+                     gz_material="Gazebo/Red" xyz="0 ${-torso_y/2 - 0.02} ${hip_z}" rpy="${PI/2} 0 0"/>
+
+  <!-- ===================== Legs + wheels ===================== -->
+  <xacro:macro name="leg" params="side sign">
+    <!-- fixed hip: thigh goes down and backwards -->
+    <joint name="hip_${side}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="thigh_${side}_link"/>
+      <origin xyz="0 ${sign*hip_y} ${hip_z}" rpy="0 ${leg_phi} 0"/>
+    </joint>
+    <link name="thigh_${side}_link">
+      <visual>
+        <geometry><mesh filename="${pkg}/leg_link.stl"/></geometry>
+        <material name="silver"/>
+      </visual>
+      <xacro:tiny_inertial/>
+    </link>
+    <gazebo reference="thigh_${side}_link"><material>Gazebo/White</material></gazebo>
+    <gazebo reference="shank_${side}_link"><material>Gazebo/White</material></gazebo>
+    <!-- fixed knee -->
+    <joint name="knee_${side}_joint" type="fixed">
+      <parent link="thigh_${side}_link"/>
+      <child link="shank_${side}_link"/>
+      <origin xyz="0 0 ${-leg_len}" rpy="0 ${-2*leg_phi} 0"/>
+    </joint>
+    <xacro:visual_part name="knee_motor_${side}_link" parent="shank_${side}_link" mesh="motor.stl"
+                       material="red" gz_material="Gazebo/Red" xyz="0 ${sign*0.004} 0"
+                       rpy="${PI/2} 0 0" scale="0.8 0.8 0.8"/>
+    <link name="shank_${side}_link">
+      <visual>
+        <geometry><mesh filename="${pkg}/leg_link.stl"/></geometry>
+        <material name="silver"/>
+      </visual>
+      <xacro:tiny_inertial/>
+    </link>
+    <!-- wheel joint: axis +Y for both wheels, so positive rotation = forward rolling -->
+    <joint name="wheel_${side}_joint" type="continuous">
+      <parent link="shank_${side}_link"/>
+      <child link="wheel_${side}_link"/>
+      <origin xyz="0 ${sign*(b - hip_y)} ${-leg_len}" rpy="0 ${leg_phi} 0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="40" velocity="60"/>
+      <dynamics damping="$(arg wheel_damping)" friction="0.0"/>
+    </joint>
+    <link name="wheel_${side}_link">
+      <visual>
+        <geometry><mesh filename="${pkg}/wheel_tyre.stl"/></geometry>
+        <material name="dark"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
+        <geometry><cylinder radius="${r_w}" length="${wheel_w}"/></geometry>
+      </collision>
+      <inertial>
+        <mass value="${m_w}"/>
+        <!-- I_wa about the wheel axis (Y), I_wd about a diameter -->
+        <inertia ixx="${I_wd}" ixy="0" ixz="0" iyy="${I_wa}" iyz="0" izz="${I_wd}"/>
+      </inertial>
+    </link>
+    <xacro:visual_part name="wheel_rim_${side}_link" parent="wheel_${side}_link" mesh="wheel_rim.stl"
+                       material="grey" gz_material="Gazebo/DarkGrey"/>
+  </xacro:macro>
+
+  <xacro:leg side="left" sign="1"/>
+  <xacro:leg side="right" sign="-1"/>
+
+  <!-- ===================== Arm (Fig. 3) ===================== -->
+  <joint name="arm_base_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="arm_base_link"/>
+    <origin xyz="0 0 ${shoulder_z}" rpy="0 0 0"/>
+  </joint>
+  <link name="arm_base_link">
+    <visual>
+      <geometry><mesh filename="${pkg}/motor.stl"/></geometry>
+      <material name="red"/>
+    </visual>
+    <xacro:tiny_inertial/>
+  </link>
+
+  <gazebo reference="arm_base_link"><material>Gazebo/Red</material></gazebo>
+
+  <joint name="arm_joint_1" type="revolute">
+    <parent link="arm_base_link"/>
+    <child link="arm_link_1"/>
+    <origin xyz="0 0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-PI}" upper="${PI}" effort="30" velocity="15"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="arm_link_1">
+    <visual>
+      <geometry><mesh filename="${pkg}/arm_link.stl"/></geometry>
+      <material name="silver"/>
+    </visual>
+    <inertial>
+      <!-- point mass at the far end of the link (paper assumption), I1 about Z -->
+      <origin xyz="${lg1} 0 0"/>
+      <mass value="${m1}"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="${I1}" iyz="0" izz="${I1}"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="arm_link_1"><material>Gazebo/White</material></gazebo>
+  <xacro:visual_part name="elbow_motor_link" parent="arm_link_1" mesh="motor.stl" material="red"
+                     gz_material="Gazebo/Red" xyz="${l1} 0 ${elbow_dz/2}" scale="0.8 0.8 0.8"/>
+
+  <joint name="arm_joint_2" type="revolute">
+    <parent link="arm_link_1"/>
+    <child link="arm_link_2"/>
+    <origin xyz="${l1} 0 ${elbow_dz}" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-0.97*PI}" upper="${0.97*PI}" effort="30" velocity="15"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="arm_link_2">
+    <visual>
+      <geometry><mesh filename="${pkg}/arm_link.stl"/></geometry>
+      <material name="silver"/>
+    </visual>
+    <inertial>
+      <origin xyz="${lg2} 0 0"/>
+      <mass value="${m2}"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="${I2}" iyz="0" izz="${I2}"/>
+    </inertial>
+  </link>
+
+  <!-- end-effector frame (Sigma_A coordinates are computed in arm_base_link) -->
+  <joint name="ee_joint" type="fixed">
+    <parent link="arm_link_2"/>
+    <child link="ee_link"/>
+    <origin xyz="${l2} 0 0"/>
+  </joint>
+  <link name="ee_link">
+    <visual>
+      <geometry><mesh filename="${pkg}/gripper.stl"/></geometry>
+      <material name="red"/>
+    </visual>
+  </link>
+  <gazebo reference="arm_link_2"><material>Gazebo/White</material></gazebo>
+  <gazebo reference="ee_link"><material>Gazebo/Red</material></gazebo>
+
+  <!-- payload: can of cola held at the end-effector -->
+  <joint name="payload_joint" type="fixed">
+    <parent link="ee_link"/>
+    <child link="payload_link"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+  <link name="payload_link">
+    <visual>
+      <geometry><mesh filename="${pkg}/can.stl"/></geometry>
+      <material name="coke"/>
+    </visual>
+    <inertial>
+      <mass value="$(arg payload_mass)"/>
+      <inertia ixx="${$(arg payload_mass)*(3*can_r*can_r + can_h*can_h)/12}" ixy="0" ixz="0"
+               iyy="${$(arg payload_mass)*(3*can_r*can_r + can_h*can_h)/12}" iyz="0"
+               izz="${$(arg payload_mass)*can_r*can_r/2}"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="payload_link"><material>Gazebo/RedBright</material></gazebo>
+
+  <!-- IMU at the body CoM -->
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0"/>
+  </joint>
+  <link name="imu_link"/>
+
+  <xacro:if value="$(arg use_gazebo)">
+    <xacro:include filename="$(find wheel_legged_arm_balance)/urdf/wheel_legged_robot.ros2_control.xacro"/>
+    <xacro:wlr_ros2_control q1_home="${q1_home}" q2_home="${q2_home}"
+                            controllers_file="$(arg controllers_file)"/>
+  </xacro:if>
+</robot>

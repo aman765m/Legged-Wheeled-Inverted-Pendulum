@@ -1,0 +1,103 @@
+# ros2_control configuration for the wheel-legged robot (Gazebo Classic)
+controller_manager:
+  ros__parameters:
+    update_rate: 1000  # Hz (Gazebo step is 1 ms)
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+    lqr_balance_controller:
+      type: wheel_legged_arm_balance/LqrBalanceController
+    rac_arm_controller:
+      type: wheel_legged_arm_balance/RacArmController
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: imu_sensor
+    frame_id: imu_link
+
+# ---------------- Sec. II-A: lower body LQR ----------------
+lqr_balance_controller:
+  ros__parameters:
+    wheel_right_joint: wheel_right_joint
+    wheel_left_joint: wheel_left_joint
+    imu_name: imu_sensor
+    imu_reference_rpy: [0.0, 0.0, 0.0]   # overwritten by sim.launch.py (spawn orientation)
+    arm_joints: [arm_joint_1, arm_joint_2]
+    # beta = pitch of the wheel-axis -> whole-body CoM line (uses the arm joint angles)
+    com_compensation: true
+
+    # Table 1
+    model:
+      m_c: 7.5
+      m_w: 0.35
+      l: 0.5914
+      I_xx: 0.0878
+      I_yy: 0.0347
+      I_zz: 0.0632
+      I_wa: 0.0018
+      I_wd: 0.000929
+      I_ma: 1.04e-7
+      I_md: 0.0
+      gamma: 1.0
+      g: 9.81
+      r_w: 0.1016
+      b: 0.215
+      c: 0.25
+      lump_arm: false      # true: add arm + payload (home posture) to the body for the gain design
+    arm:
+      l1: 0.3
+      l2: 0.3
+      lg1: 0.3
+      lg2: 0.3
+      m1: 0.6
+      m2: 1.13
+      I1: 0.018
+      I2: 0.0339
+      shoulder_height: 0.23   # arm plane above the body CoM (URDF geometry)
+      home_q1: 1.0471975511965976
+      home_q2: -2.0943951023931953
+    payload_mass: 0.36
+
+    # paper    : K printed in the paper
+    # computed : K = lqr(A, B, Q, R) solved on-line from the Table 1 model
+    # custom   : K given below (row-major 2x6)
+    gain_source: paper
+    Q: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    R: [1.0, 1.0]
+    K: [-0.7071, 0.7071, -16.2331, -3.1751, 0.2016, -3.5082,
+        -0.7071, -0.7071, -16.2331, -3.1751, -0.2016, -3.5082]
+
+    friction_feedforward: true # "ref." of Eq. 12: c * relative wheel speed of the reference
+    torque_limit: 4.5          # calibrated so that the fixed-arm robot falls just above 27-28 N (see README)
+    max_position_error: 1.0
+    max_yaw_error: 2.0
+    cmd_vel_timeout: 0.5
+    max_linear_velocity: 1.0
+    max_angular_velocity: 1.0
+    max_linear_acceleration: 0.5
+    max_angular_acceleration: 2.0
+
+# ---------------- Sec. II-B: resolved acceleration arm control ----------------
+rac_arm_controller:
+  ros__parameters:
+    joints: [arm_joint_1, arm_joint_2]
+    arm:
+      l1: 0.3
+      l2: 0.3
+      lg1: 0.3
+      lg2: 0.3
+      m1: 0.6
+      m2: 1.13
+      I1: 0.018
+      I2: 0.0339
+    payload_mass: 0.36
+    payload_inertia: 0.0002
+    Kp: [400.0, 400.0]
+    Kv: [40.0, 40.0]
+    effort_limit: 30.0
+    jacobian_damping: 0.001
+    max_reach: 0.58
+    min_reach: 0.05

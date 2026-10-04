@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<!-- ros2_control + Gazebo Classic (gazebo_ros2_control) description -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="wlr_ros2_control" params="q1_home q2_home controllers_file">
+
+    <ros2_control name="GazeboSystem" type="system">
+      <hardware>
+        <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+      </hardware>
+
+      <!-- wheels: torque controlled by the LQR balance controller -->
+      <joint name="wheel_right_joint">
+        <command_interface name="effort"><param name="min">-40</param><param name="max">40</param></command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="wheel_left_joint">
+        <command_interface name="effort"><param name="min">-40</param><param name="max">40</param></command_interface>
+        <state_interface name="position"/>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <!-- arm: torque controlled by the resolved acceleration controller -->
+      <joint name="arm_joint_1">
+        <command_interface name="effort"><param name="min">-30</param><param name="max">30</param></command_interface>
+        <state_interface name="position"><param name="initial_value">${q1_home}</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+      <joint name="arm_joint_2">
+        <command_interface name="effort"><param name="min">-30</param><param name="max">30</param></command_interface>
+        <state_interface name="position"><param name="initial_value">${q2_home}</param></state_interface>
+        <state_interface name="velocity"/>
+        <state_interface name="effort"/>
+      </joint>
+
+      <sensor name="imu_sensor">
+        <state_interface name="orientation.x"/>
+        <state_interface name="orientation.y"/>
+        <state_interface name="orientation.z"/>
+        <state_interface name="orientation.w"/>
+        <state_interface name="angular_velocity.x"/>
+        <state_interface name="angular_velocity.y"/>
+        <state_interface name="angular_velocity.z"/>
+        <state_interface name="linear_acceleration.x"/>
+        <state_interface name="linear_acceleration.y"/>
+        <state_interface name="linear_acceleration.z"/>
+      </sensor>
+    </ros2_control>
+
+    <gazebo>
+      <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+        <parameters>${controllers_file}</parameters>
+      </plugin>
+      <!-- ground truth of the body pose / twist (used for CMP evaluation and path tracking) -->
+      <plugin name="ground_truth" filename="libgazebo_ros_p3d.so">
+        <ros>
+          <remapping>odom:=ground_truth/odom</remapping>
+        </ros>
+        <frame_name>world</frame_name>
+        <body_name>base_link</body_name>
+        <update_rate>1000.0</update_rate>
+        <gaussian_noise>0.0</gaussian_noise>
+      </plugin>
+    </gazebo>
+
+    <!-- NOTE: Gazebo Classic reports the orientation relative to the spawn pose;
+         the launch file passes that pose to the consumers (imu_reference_rpy). -->
+    <gazebo reference="base_link">
+      <sensor name="imu_sensor" type="imu">
+        <always_on>true</always_on>
+        <update_rate>1000</update_rate>
+        <pose>0 0 0 0 0 0</pose>
+      </sensor>
+    </gazebo>
+
+    <gazebo reference="wheel_left_link">
+      <material>Gazebo/FlatBlack</material>
+      <mu1>1.5</mu1><mu2>1.5</mu2>
+      <kp>1000000.0</kp><kd>100.0</kd>
+      <minDepth>0.001</minDepth><maxVel>1.0</maxVel>
+    </gazebo>
+    <gazebo reference="wheel_right_link">
+      <material>Gazebo/FlatBlack</material>
+      <mu1>1.5</mu1><mu2>1.5</mu2>
+      <kp>1000000.0</kp><kd>100.0</kd>
+      <minDepth>0.001</minDepth><maxVel>1.0</maxVel>
+    </gazebo>
+  </xacro:macro>
+</robot>

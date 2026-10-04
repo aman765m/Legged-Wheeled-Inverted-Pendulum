@@ -1,0 +1,12 @@
+<library path="wheel_legged_arm_balance_controllers">
+  <class name="wheel_legged_arm_balance/LqrBalanceController"
+         type="wheel_legged_arm_balance::LqrBalanceController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>LQR balance controller of the wheel-legged robot lower body (Raza et al. 2021, Sec. II-A).</description>
+  </class>
+  <class name="wheel_legged_arm_balance/RacArmController"
+         type="wheel_legged_arm_balance::RacArmController"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>Resolved acceleration control of the 2-link arm (Raza et al. 2021, Sec. II-B, Eq. 17).</description>
+  </class>
+</library>

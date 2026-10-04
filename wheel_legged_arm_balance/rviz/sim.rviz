@@ -1,0 +1,81 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 0.5
+      Plane Cell Count: 20
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Durability Policy: Transient Local
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Name: CoM (blue) / CMP (pink)
+      Enabled: true
+      Topic:
+        Value: /cmp_estimator/markers
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: Robot path
+      Enabled: true
+      Color: 0; 0; 0
+      Line Style: Lines
+      Topic:
+        Value: /cmp_estimator/base_path
+        Durability Policy: Volatile
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: CMP path
+      Enabled: true
+      Color: 255; 102; 204
+      Line Style: Lines
+      Topic:
+        Value: /cmp_estimator/cmp_path
+        Durability Policy: Volatile
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Name: Target path
+      Enabled: true
+      Color: 0; 200; 0
+      Line Style: Lines
+      Topic:
+        Value: /infinity_loop_tracker/target_path
+        Durability Policy: Transient Local
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: false
+      Value: false
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: world
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 4.0
+      Focal Point: {X: 0.0, Y: 0.0, Z: 0.5}
+      Pitch: 0.4
+      Yaw: 0.8
+      Target Frame: <Fixed Frame>
+      Name: Current View
+Window Geometry:
+  Height: 900
+  Width: 1400

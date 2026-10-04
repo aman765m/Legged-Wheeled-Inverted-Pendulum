@@ -1,0 +1,11 @@
+{
+  "csv": "/tmp/claude-1000/-media-aman-4848FE5648FE41EC-Acad-Field-And-Service-Robots-WIP-paper/bc11b8ad-1d25-49fd-81da-16cd714a625d/scratchpad/campaign/push_active_f29_m0.36_r0.csv",
+  "fell": false,
+  "fall_time": null,
+  "cmp_error_integral_x": 0.5032394963511936,
+  "cmp_error_integral_y": 0.06294598260704667,
+  "cmp_error_integral_x_after_event": 0.5022051047640337,
+  "max_abs_cmp_error_x": 0.4502036675235063,
+  "metric_start": 5.0,
+  "duration": 20.0
+}

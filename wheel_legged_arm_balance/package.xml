@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>wheel_legged_arm_balance</name>
+  <version>1.0.0</version>
+  <description>
+    ROS 2 Humble re-implementation of "Balance Stability Augmentation for Wheel-Legged
+    Biped Robot Through Arm Acceleration Control" (Raza, Zhu, Hayashibe, IEEE Access 2021):
+    robot model (URDF + STL), LQR lower-body balance controller, resolved acceleration
+    arm controller, active-arm finite-state machine, CMP evaluation and Gazebo experiments.
+  </description>
+  <maintainer email="ed26s001@smail.iitm.ac.in">aman</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
+
+  <build_depend>eigen</build_depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>controller_interface</depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>realtime_tools</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>trajectory_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>urdfdom</depend>
+  <depend>tf2_ros</depend>
+  <depend>controller_manager_msgs</depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>gazebo_msgs</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>gazebo_ros2_control</exec_depend>
+  <exec_depend>gazebo_plugins</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>imu_sensor_broadcaster</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>python3-pil</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <gazebo_ros gazebo_model_path="${prefix}/.."/>
+    <controller_interface plugin="${prefix}/wheel_legged_arm_balance_controllers.xml"/>
+  </export>
+</package>

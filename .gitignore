@@ -1,0 +1,16 @@
+# colcon (in case the workspace root is ever committed)
+build/
+install/
+log/
+# python
+__pycache__/
+*.pyc
+# experiment outputs written outside docs/
+wlbr_results/
+*.bag
+# editors / OS
+.vscode/
+.idea/
+*.swp
+desktop.ini
+.Trash-*
